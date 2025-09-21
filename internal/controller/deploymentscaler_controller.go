@@ -13,7 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // RBAC: manage CR and read/update Deployments
@@ -29,6 +31,7 @@ type DeploymentScalerReconciler struct {
 
 func (r *DeploymentScalerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+	logger.Info("Reconciling DeploymentScaler", "request", req, "namespace", req.Namespace, "name", req.Name)
 	var ds scalingv1.DeploymentScaler
 	if err := r.Get(ctx, req.NamespacedName, &ds); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -109,8 +112,38 @@ func setCondition(ds *scalingv1.DeploymentScaler, cond metav1.Condition) {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DeploymentScalerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(),
+		&scalingv1.DeploymentScaler{}, "spec.targetKey",
+		func(obj client.Object) []string {
+			ds := obj.(*scalingv1.DeploymentScaler)
+			ns := ds.Namespace
+			if ds.Spec.Target.Namespace != nil && *ds.Spec.Target.Namespace != "" {
+				ns = *ds.Spec.Target.Namespace
+			}
+			return []string{fmt.Sprintf("%s/%s", ns, ds.Spec.Target.Name)}
+		},
+	); err != nil {
+		return err
+	}
+	mapDepToDS := handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+		dep := obj.(*appsv1.Deployment)
+		key := fmt.Sprintf("%s/%s", dep.Namespace, dep.Name)
+		var list scalingv1.DeploymentScalerList
+		// インデックスで該当 DS のみ取得
+		if err := r.List(ctx, &list, client.MatchingFields{"spec.targetKey": key}); err != nil {
+			return nil
+		}
+		reqs := make([]reconcile.Request, 0, len(list.Items))
+		for _, ds := range list.Items {
+			reqs = append(reqs, reconcile.Request{
+				NamespacedName: types.NamespacedName{Namespace: ds.Namespace, Name: ds.Name},
+			})
+		}
+		return reqs
+	})
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&scalingv1.DeploymentScaler{}).
+		Watches(&appsv1.Deployment{}, mapDepToDS).
 		Named("deploymentscaler").
 		Complete(r)
 }

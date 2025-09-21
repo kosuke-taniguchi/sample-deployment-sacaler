@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: deployment-scaler
-  newTag: dev
+  newTag: dev-1758445064

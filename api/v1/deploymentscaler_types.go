@@ -1,45 +1,25 @@
-/*
-Copyright 2025.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// DeploymentScalerSpec defines the desired state of DeploymentScaler
-type DeploymentScalerSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	// The following markers will use OpenAPI v3 schema to validate the value
-	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
-
-	// foo is an example field of DeploymentScaler. Edit deploymentscaler_types.go to remove/update
-	// +optional
-	Foo *string `json:"foo,omitempty"`
+// DeploymentTarget identifies a Deployment to control
+type DeploymentTarget struct {
+	// Name of the Deployment (required)
+	Name string `json:"name"`
+	// Namespace of the Deployment (optional; default: same as this CR)
+	Namespace *string `json:"namespace,omitempty"`
 }
 
+type DeploymentScalerSpec struct {
+	// The target Deployment to scale
+	Target DeploymentTarget `json:"target"`
+	// Desired replicas for the target Deployment (>=0)
+	Replicas int32 `json:"replicas"`
+}
 // DeploymentScalerStatus defines the observed state of DeploymentScaler.
 type DeploymentScalerStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// For Kubernetes API conventions, see:
 	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 

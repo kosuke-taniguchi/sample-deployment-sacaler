@@ -1,135 +1,71 @@
 # sample-deployment-scaler
-// TODO(user): Add simple overview of use/purpose
+カスタムリソースとカスタムコントローラのサンプル。学習用
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+DeploymentScaler（カスタムリソース）に定義したreplicasで、対象のDeploymentのreplicasを保ちます。
 
-## Getting Started
+## 動かし方
 
-### Prerequisites
-- go version v1.24.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+### kindでクラスター作成
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
-
-```sh
-make docker-build docker-push IMG=<some-registry>/sample-deployment-scaler:tag
+```
+kind create cluster --name deploy-scaler
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+### カスタムコントローラのビルド
 
-**Install the CRDs into the cluster:**
-
-```sh
-make install
+```
+export IMG=deployment-scaler:dev
+make docker-build IMG=$IMG
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+### kindにDocker imageをpush
 
-```sh
-make deploy IMG=<some-registry>/sample-deployment-scaler:tag
+```
+kind load docker-image $IMG --name deploy-scaler
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+### カスタムコントローラーのデプロイ
 
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
-
-```sh
-kubectl apply -k config/samples/
+```
+make deploy IMG=$IMG
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+### deploymentとカスタムリソースの適用
 
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
+次のコマンドを実行し、下記のようなログが出ていれば成功
 
-```sh
-kubectl delete -k config/samples/
+```
+❯ kubectl apply -k config/samples/
+deployment.apps/server created
+deploymentscaler.scaling.example.com/deploymentscaler-sample created
 ```
 
-**Delete the APIs(CRDs) from the cluster:**
+## 動作確認
 
-```sh
-make uninstall
+1. 起動しているPodを確認
+
+```
+❯ kubectl get po
+NAME                     READY   STATUS    RESTARTS   AGE
+server-5b997465b-6z42v   1/1     Running   0          11m
+server-5b997465b-fk67z   1/1     Running   0          11m
+server-5b997465b-wsrhx   1/1     Running   0          11m
 ```
 
-**UnDeploy the controller from the cluster:**
+2. Podを１つ削除する
 
-```sh
-make undeploy
+```
+❯ kubectl delete po server-5b997465b-6z42v
+pod "server-5b997465b-6z42v" deleted
 ```
 
-## Project Distribution
+3. 再度起動しているPodを確認
 
-Following the options to release and provide this solution to the users.
-
-### By providing a bundle with all YAML files
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/sample-deployment-scaler:tag
 ```
-
-**NOTE:** The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without its
-dependencies.
-
-2. Using the installer
-
-Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
-the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/sample-deployment-scaler/<tag or branch>/dist/install.yaml
+❯ kubectl get po
+NAME                     READY   STATUS    RESTARTS   AGE
+server-5b997465b-fk67z   1/1     Running   0          11m
+server-5b997465b-pm9sf   1/1     Running   0          2s
+server-5b997465b-wsrhx   1/1     Running   0          11m
 ```
-
-### By providing a Helm Chart
-
-1. Build the chart using the optional helm plugin
-
-```sh
-kubebuilder edit --plugins=helm/v1-alpha
-```
-
-2. See that a chart was generated under 'dist/chart', and users
-can obtain this solution from there.
-
-**NOTE:** If you change the project, you need to update the Helm Chart
-using the same command above to sync the latest changes. Furthermore,
-if you create webhooks, you need to use the above command with
-the '--force' flag and manually ensure that any custom configuration
-previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
-is manually re-applied afterwards.
-
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
-
-**NOTE:** Run `make help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
-
-## License
-
-Copyright 2025.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-

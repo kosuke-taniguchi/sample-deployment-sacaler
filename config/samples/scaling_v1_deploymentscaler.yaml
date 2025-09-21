@@ -6,4 +6,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: deploymentscaler-sample
 spec:
-  # TODO(user): Add fields here
+  target:
+    name: server
+    namespace: default  # 明示的に指定(省略時はCRと同じ)
+  replicas: 3
